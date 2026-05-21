@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PA28-181 Archer — Flight Checklist</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0e14;
+  --panel: #111520;
+  --panel2: #161b27;
+  --border: #1e2a40;
+  --accent: #00d4ff;
+  --accent2: #ff6b35;
+  --green: #00ff88;
+  --red: #ff3355;
+  --amber: #ffaa00;
+  --text: #c8d8f0;
+  --muted: #5a6a85;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-ui: 'Rajdhani', sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scanline overlay */
+body::before {
+  content: '';
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  pointer-events: none; z-index: 1000;
+}
+
+/* Header */
+header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  height: 60px;
+  position: sticky; top: 0; z-index: 100;
+}
+.logo {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+.logo span { color: var(--muted); }
+.header-divider { width: 1px; height: 30px; background: var(--border); }
+nav {
+  display: flex; gap: 4px; flex: 1; overflow-x: auto;
+  scrollbar-width: none;
+}
+nav::-webkit-scrollbar { display: none; }
+.nav-btn {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 4px;
+  white-space: nowrap;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+.nav-btn:hover { color: var(--text); border-color: var(--border); }
+.nav-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(0,212,255,0.07);
+}
+.nav-btn.emergency-tab {
+  color: var(--red);
+  border-color: transparent;
+}
+.nav-btn.emergency-tab.active {
+  border-color: var(--red);
+  background: rgba(255,51,85,0.08);
+}
+
+/* Main layout */
+main { max-width: 960px; margin: 0 auto; padding: 28px 20px 80px; }
+
+/* Section pages */
+.page { display: none; }
+.page.active { display: block; }
+
+/* Progress bar */
+.progress-bar-wrap {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px;
+}
+.progress-bar-track {
+  flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%; background: var(--green);
+  border-radius: 2px; transition: width 0.4s ease;
+}
+.progress-label {
+  font-family: var(--font-mono); font-size: 12px; color: var(--green);
+  min-width: 60px; text-align: right;
+}
+
+/* Checklist cards */
+.checklist-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.checklist-title {
+  font-size: 22px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--accent);
+}
+.btn-reset {
+  font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 6px 14px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer; border-radius: 4px;
+  transition: all 0.15s;
+}
+.btn-reset:hover { border-color: var(--accent2); color: var(--accent2); }
+
+.checklist-section { margin-bottom: 8px; }
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 3px;
+  color: var(--muted); text-transform: uppercase;
+  margin-bottom: 0;
+  padding: 10px 12px 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel2);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  user-select: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+.section-label:hover { border-color: var(--accent); color: var(--accent); }
+.section-label.open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; color: var(--accent); }
+.section-label-left { display: flex; align-items: center; gap: 10px; }
+.section-chevron {
+  font-size: 10px; transition: transform 0.2s; display: inline-block; color: var(--muted);
+}
+.section-label.open .section-chevron { transform: rotate(90deg); color: var(--accent); }
+.section-mini-prog {
+  font-family: var(--font-mono); font-size: 10px; color: var(--green);
+  opacity: 0; transition: opacity 0.2s;
+}
+.section-mini-prog.visible { opacity: 1; }
+.section-body {
+  display: none;
+  border: 1px solid var(--border); border-top: none;
+  border-bottom-left-radius: 4px; border-bottom-right-radius: 4px;
+  overflow: hidden; margin-bottom: 8px;
+}
+.section-body.open { display: block; }
+.section-body .check-item { border-radius: 0; border-left-width: 3px; margin-bottom: 0; border-bottom: none; border-right: none; border-left-color: transparent; }
+.section-body .check-item:last-child { border-bottom: none; }
+.section-body .check-item:hover { border-left-color: var(--accent); }
+.section-body .check-item.checked { border-left-color: var(--green); }
+.section-body .note-item { border-radius: 0; border-left: none; border-right: none; margin-bottom: 0; }
+
+.check-item {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  margin-bottom: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-radius: 4px;
+}
+.check-item:hover { border-color: var(--accent); border-left-color: var(--accent); background: var(--panel2); }
+.check-item.checked {
+  border-left-color: var(--green);
+  background: rgba(0,255,136,0.04);
+  opacity: 0.6;
+}
+.check-item.checked .item-action { color: var(--green); }
+.check-box {
+  width: 18px; height: 18px; min-width: 18px;
+  border: 1.5px solid var(--muted);
+  border-radius: 3px; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: var(--green);
+  transition: all 0.15s;
+}
+.check-item.checked .check-box {
+  background: rgba(0,255,136,0.15);
+  border-color: var(--green);
+}
+.item-text { flex: 1; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.item-label { font-size: 15px; font-weight: 500; color: var(--text); }
+.item-action {
+  font-family: var(--font-mono); font-size: 13px;
+  color: var(--amber); white-space: nowrap;
+}
+.check-item.checked .item-label { color: var(--muted); }
+
+/* Note items (non-checkable) */
+.note-item {
+  font-family: var(--font-mono);
+  font-size: 12px; color: var(--red);
+  padding: 6px 14px 6px 47px;
+  background: rgba(255,51,85,0.05);
+  border: 1px solid rgba(255,51,85,0.15);
+  border-radius: 4px;
+  margin-bottom: 3px;
+}
+
+/* Speeds reference */
+.speeds-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px; margin-top: 8px;
+}
+.speed-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.speed-name { font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: 1px; }
+.speed-val { font-family: var(--font-mono); font-size: 18px; color: var(--accent); }
+.speed-unit { font-size: 11px; color: var(--muted); }
+
+/* ===== EMERGENCY PAGE ===== */
+.emergency-page-header {
+  display: flex; gap: 12px; margin-bottom: 28px; flex-wrap: wrap;
+}
+.btn-generate {
+  font-family: var(--font-ui); font-size: 14px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 12px 28px;
+  background: var(--red); border: none;
+  color: #fff; cursor: pointer; border-radius: 6px;
+  transition: all 0.15s;
+  box-shadow: 0 0 20px rgba(255,51,85,0.3);
+  animation: pulse-red 2s infinite;
+}
+.btn-generate:hover { background: #ff1135; box-shadow: 0 0 30px rgba(255,51,85,0.5); }
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 20px rgba(255,51,85,0.3); }
+  50% { box-shadow: 0 0 35px rgba(255,51,85,0.6); }
+}
+.btn-study-all {
+  font-family: var(--font-ui); font-size: 14px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 12px 28px;
+  background: transparent; border: 2px solid var(--amber);
+  color: var(--amber); cursor: pointer; border-radius: 6px;
+  transition: all 0.15s;
+}
+.btn-study-all:hover { background: rgba(255,170,0,0.1); }
+
+/* Emergency scenario card */
+.scenario-card {
+  background: var(--panel);
+  border: 2px solid var(--red);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  box-shadow: 0 0 40px rgba(255,51,85,0.15);
+  display: none;
+}
+.scenario-card.active { display: block; }
+.scenario-top {
+  background: var(--red);
+  padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.scenario-type {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 3px;
+  color: rgba(255,255,255,0.7); text-transform: uppercase;
+}
+.scenario-title {
+  font-size: 22px; font-weight: 700; letter-spacing: 2px;
+  color: #fff; text-transform: uppercase;
+}
+.scenario-badge {
+  font-family: var(--font-mono); font-size: 11px;
+  background: rgba(0,0,0,0.3); color: #fff;
+  padding: 4px 10px; border-radius: 20px; letter-spacing: 1px;
+}
+.scenario-body { padding: 20px; }
+.scenario-desc {
+  font-size: 15px; color: var(--muted);
+  margin-bottom: 20px; line-height: 1.6;
+}
+
+/* Emergency steps */
+.emergency-steps { list-style: none; }
+.emergency-step {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 10px 14px;
+  background: var(--panel2); border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  margin-bottom: 3px; cursor: pointer;
+  border-radius: 4px; transition: all 0.15s;
+}
+.emergency-step:hover { border-color: var(--red); border-left-color: var(--red); }
+.emergency-step.done { border-left-color: var(--green); opacity: 0.5; }
+.emergency-step.done .estep-action { color: var(--green); }
+.step-num {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--muted); min-width: 22px; margin-top: 2px;
+}
+.estep-label { flex: 1; font-size: 15px; font-weight: 500; }
+.estep-action {
+  font-family: var(--font-mono); font-size: 13px;
+  color: var(--amber); white-space: nowrap;
+}
+.emergency-step.done .estep-label { color: var(--muted); }
+.estep-check {
+  width: 18px; height: 18px; min-width: 18px;
+  border: 1.5px solid var(--muted); border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--green); margin-top: 2px;
+  transition: all 0.15s;
+}
+.emergency-step.done .estep-check {
+  background: rgba(0,255,136,0.15); border-color: var(--green);
+}
+
+.estep-note {
+  font-family: var(--font-mono); font-size: 11px; color: var(--red);
+  margin-top: 4px; padding-left: 52px; margin-bottom: 6px;
+  opacity: 0.8;
+}
+
+/* Emergency scenario progress */
+.scenario-progress {
+  display: flex; align-items: center; gap: 10px; margin-top: 16px;
+}
+.scenario-prog-label {
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+}
+
+/* Emergency library */
+.emerg-library { margin-top: 28px; }
+.emerg-lib-title {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 3px;
+  color: var(--muted); text-transform: uppercase; margin-bottom: 12px;
+}
+.emerg-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+.emerg-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 6px; padding: 14px 16px;
+  cursor: pointer; transition: all 0.15s;
+}
+.emerg-card:hover { border-color: var(--red); background: rgba(255,51,85,0.05); }
+.emerg-card-name { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.emerg-card-steps { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.emerg-card-cat {
+  display: inline-block; margin-top: 8px;
+  font-size: 10px; font-weight: 600; letter-spacing: 1px;
+  padding: 2px 8px; border-radius: 3px;
+}
+.cat-engine { background: rgba(255,51,85,0.15); color: var(--red); }
+.cat-fire { background: rgba(255,107,53,0.15); color: var(--accent2); }
+.cat-electrical { background: rgba(255,170,0,0.15); color: var(--amber); }
+.cat-system { background: rgba(0,212,255,0.1); color: var(--accent); }
+.cat-airframe { background: rgba(0,255,136,0.1); color: var(--green); }
+
+/* Study mode overlay */
+.study-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85); z-index: 500;
+  align-items: center; justify-content: center;
+}
+.study-overlay.active { display: flex; }
+.study-card {
+  background: var(--panel);
+  border: 2px solid var(--border);
+  border-radius: 12px; padding: 32px;
+  max-width: 540px; width: 90%;
+  max-height: 90vh; overflow-y: auto;
+  position: relative;
+}
+.study-card-q {
+  font-size: 20px; font-weight: 700;
+  color: var(--amber); margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+.study-card-scenario {
+  font-size: 13px; color: var(--muted); margin-bottom: 24px;
+}
+.study-card-steps { list-style: none; }
+.study-step {
+  display: flex; gap: 12px; padding: 8px 0;
+  border-bottom: 1px solid var(--border); align-items: baseline;
+}
+.study-step:last-child { border-bottom: none; }
+.s-num { font-family: var(--font-mono); font-size: 11px; color: var(--muted); min-width: 20px; }
+.s-lbl { font-size: 15px; flex: 1; }
+.s-act { font-family: var(--font-mono); font-size: 13px; color: var(--amber); }
+.study-nav {
+  display: flex; gap: 10px; margin-top: 24px; justify-content: space-between;
+}
+.btn-study-nav {
+  font-family: var(--font-ui); font-size: 13px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 10px 22px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text); cursor: pointer; border-radius: 6px;
+  transition: all 0.15s;
+}
+.btn-study-nav:hover { border-color: var(--accent); color: var(--accent); }
+.btn-study-close {
+  position: absolute; top: 16px; right: 16px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer; border-radius: 4px;
+  padding: 4px 10px; font-size: 14px;
+  transition: all 0.15s;
+}
+.btn-study-close:hover { border-color: var(--red); color: var(--red); }
+
+/* Timer for emergency */
+.emergency-timer {
+  font-family: var(--font-mono); font-size: 28px; color: var(--red);
+  margin-left: auto;
+}
+.timer-label { font-size: 11px; color: var(--muted); text-align: center; margin-top: -4px; }
+
+/* Completion banner */
+.completion-banner {
+  display: none; margin-top: 20px;
+  background: rgba(0,255,136,0.08);
+  border: 1px solid var(--green);
+  border-radius: 8px; padding: 16px 20px;
+  color: var(--green); font-size: 16px; font-weight: 600;
+  letter-spacing: 1px; text-align: center;
+}
+.completion-banner.show { display: block; }
+
+/* Responsive */
+@media (max-width: 600px) {
+  header { padding: 0 12px; gap: 12px; }
+  main { padding: 16px 12px 60px; }
+  .item-action { display: none; }
+  .estep-action { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">PA28-181 <span>ARCHER</span></div>
+  <div class="header-divider"></div>
+  <nav id="nav">
+    <button class="nav-btn active" onclick="showPage('preflight')">Pre-Flight</button>
+    <button class="nav-btn" onclick="showPage('startup')">Start</button>
+    <button class="nav-btn" onclick="showPage('taxi')">Taxi</button>
+    <button class="nav-btn" onclick="showPage('runup')">Run-Up</button>
+    <button class="nav-btn" onclick="showPage('takeoff')">Takeoff</button>
+    <button class="nav-btn" onclick="showPage('cruise')">Cruise</button>
+    <button class="nav-btn" onclick="showPage('landing')">Landing</button>
+    <button class="nav-btn" onclick="showPage('shutdown')">Shutdown</button>
+    <button class="nav-btn" onclick="showPage('speeds')">Speeds</button>
+    <button class="nav-btn emergency-tab" onclick="showPage('emergency')">⚠ Emergency</button>
+  </nav>
+</header>
+
+<main>
+
+<!-- PRE-FLIGHT -->
+<div class="page active" id="page-preflight">
+  <div class="checklist-header">
+    <div class="checklist-title">Pre-Flight</div>
+    <button class="btn-reset" onclick="resetPage('preflight')">Reset</button>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="prog-preflight"></div></div>
+    <div class="progress-label" id="prog-label-preflight">0%</div>
+  </div>
+  <div class="completion-banner" id="done-preflight">✓ Pre-Flight Complete</div>
+
+  <div class="checklist-section">
+    <div class="section-label">Interior</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Required Documents</span><span class="item-action">On Board</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Master Switch</span><span class="item-action">Off</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Avionics Master</span><span class="item-action">Off</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Selector</span><span class="item-action">Cycle</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Pitot/Static Drain</span><span class="item-action">Drain 2-3 sec</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Master Switch</span><span class="item-action">On</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Quantity Gauges</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Flaps</span><span class="item-action">Extend</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Aircraft Lights</span><span class="item-action">On / Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Pitot Heat</span><span class="item-action">On / Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Stall Warning Horn</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">All Electrical Switches</span><span class="item-action">Off</span></div></div>
+  </div>
+
+  <div class="checklist-section">
+    <div class="section-label">Right Wing</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Flap</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Aileron</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Nav / Anti-Collision Light</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Leading Edge</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Vent</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Tank Sump</span><span class="item-action">Drain</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Quantity</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Main Wheel / Strut</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Brakes</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Air Inlets</span><span class="item-action">Clear</span></div></div>
+  </div>
+
+  <div class="checklist-section">
+    <div class="section-label">Nose</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Windshield</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Oil</span><span class="item-action">6 Qts Min</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Cowling</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Alternator Belt</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Propeller</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Nose Wheel / Strut</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Air Inlet</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel System Sump</span><span class="item-action">Drain</span></div></div>
+  </div>
+
+  <div class="checklist-section">
+    <div class="section-label">Left Wing</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Air Inlet</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Brakes</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Main Wheel / Strut</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Tank Sump</span><span class="item-action">Drain</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Quantity</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Vent</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Leading Edge</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Pitot Head</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Nav / Anti-Collision Light</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Aileron</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Flap</span><span class="item-action">Check</span></div></div>
+  </div>
+
+  <div class="checklist-section">
+    <div class="section-label">Fuselage / Tail</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Antennas</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Lights</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Stabilator</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Rudder</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Baggage Door</span><span class="item-action">Check</span></div></div>
+  </div>
+</div>
+
+<!-- ENGINE START -->
+<div class="page" id="page-startup">
+  <div class="checklist-header">
+    <div class="checklist-title">Before Start & Engine Start</div>
+    <button class="btn-reset" onclick="resetPage('startup')">Reset</button>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="prog-startup"></div></div>
+    <div class="progress-label" id="prog-label-startup">0%</div>
+  </div>
+  <div class="completion-banner" id="done-startup">✓ Engine Start Complete</div>
+
+  <div class="checklist-section">
+    <div class="section-label">Before Start</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Preflight</span><span class="item-action">Complete</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Passenger Briefing</span><span class="item-action">Complete</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Belts / Harnesses / Seats</span><span class="item-action">Secure</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Circuit Breakers</span><span class="item-action">In</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Avionics Master</span><span class="item-action">Off</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Selector</span><span class="item-action">Fullest Tank</span></div></div>
+  </div>
+
+  <div class="checklist-section">
+    <div class="section-label">Engine Start</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Throttle</span><span class="item-action">¼" Cold / ½" Hot</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Mixture</span><span class="item-action">Rich</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Primer</span><span class="item-action">4–6 Cold / 3–4 Hot</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Master Switch</span><span class="item-action">On</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Aircraft Lights</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Pump</span><span class="item-action">On</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Brakes</span><span class="item-action">Hold</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Propeller Area</span><span class="item-action">Clear</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Starter</span><span class="item-action">Engage</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Throttle</span><span class="item-action">800–1000 RPM</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Oil Pressure</span><span class="item-action">Check</span></div></div>
+  </div>
+</div>
+
+<!-- TAXI -->
+<div class="page" id="page-taxi">
+  <div class="checklist-header">
+    <div class="checklist-title">Before Taxi</div>
+    <button class="btn-reset" onclick="resetPage('taxi')">Reset</button>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="prog-taxi"></div></div>
+    <div class="progress-label" id="prog-label-taxi">0%</div>
+  </div>
+  <div class="completion-banner" id="done-taxi">✓ Before Taxi Complete</div>
+  <div class="checklist-section">
+    <div class="section-label">Before Taxi</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Avionics Master</span><span class="item-action">On</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Ammeter</span><span class="item-action">Check Positive</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Flaps</span><span class="item-action">Up</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Mixture</span><span class="item-action">Lean</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Pump</span><span class="item-action">Off</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Selector</span><span class="item-action">Switch Tanks</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Transponder</span><span class="item-action">Set Code / ALT</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Avionics</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Flight Instruments</span><span class="item-action">Set / Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Aircraft Lights</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Nav Lights</span><span class="item-action">On</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Brakes</span><span class="item-action">Test</span></div></div>
+  </div>
+</div>
+
+<!-- RUN-UP -->
+<div class="page" id="page-runup">
+  <div class="checklist-header">
+    <div class="checklist-title">Run-Up</div>
+    <button class="btn-reset" onclick="resetPage('runup')">Reset</button>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="prog-runup"></div></div>
+    <div class="progress-label" id="prog-label-runup">0%</div>
+  </div>
+  <div class="completion-banner" id="done-runup">✓ Run-Up Complete</div>
+  <div class="checklist-section">
+    <div class="section-label">Run-Up</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Brakes</span><span class="item-action">Hold</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Flight Controls</span><span class="item-action">Free & Correct</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Selector</span><span class="item-action">Fullest Tank</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Circuit Breakers</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Mixture</span><span class="item-action">Rich</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Throttle</span><span class="item-action">2000 RPM</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Magnetos</span><span class="item-action">Check</span></div></div>
+    <div class="note-item">★ Max drop 175 RPM — Max differential 50 RPM</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Carburetor Heat</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Vacuum</span><span class="item-action">5.0" Hg</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Oil Pressure</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Pressure</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Oil Temperature</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Annunciator Lights</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Throttle</span><span class="item-action">Idle Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Throttle</span><span class="item-action">800–1000 RPM</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Radios / Nav</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Magnetos</span><span class="item-action">Both</span></div></div>
+  </div>
+</div>
+
+<!-- TAKEOFF -->
+<div class="page" id="page-takeoff">
+  <div class="checklist-header">
+    <div class="checklist-title">Takeoff</div>
+    <button class="btn-reset" onclick="resetPage('takeoff')">Reset</button>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="prog-takeoff"></div></div>
+    <div class="progress-label" id="prog-label-takeoff">0%</div>
+  </div>
+  <div class="completion-banner" id="done-takeoff">✓ Takeoff Checks Complete</div>
+  <div class="checklist-section">
+    <div class="section-label">Before Takeoff</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Trim</span><span class="item-action">Set Takeoff</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Flaps</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Mixture</span><span class="item-action">Rich</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Aircraft Lights</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Pump</span><span class="item-action">On</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Flight Instruments / Avionics</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Transponder</span><span class="item-action">Set ALT</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Cabin Door / Windows</span><span class="item-action">Latched</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Takeoff Briefing</span><span class="item-action">Complete</span></div></div>
+  </div>
+  <div class="checklist-section">
+    <div class="section-label">Normal Takeoff</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Heading</span><span class="item-action">Check Correct Runway</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Throttle</span><span class="item-action">Full Open</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Rotate</span><span class="item-action">48–53 KIAS</span></div></div>
+  </div>
+  <div class="checklist-section">
+    <div class="section-label">Climb</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Flaps</span><span class="item-action">Up</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Best Rate (Vy)</span><span class="item-action">76 KIAS</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Cruise Climb</span><span class="item-action">87 KIAS</span></div></div>
+  </div>
+</div>
+
+<!-- CRUISE -->
+<div class="page" id="page-cruise">
+  <div class="checklist-header">
+    <div class="checklist-title">Cruise & Descent</div>
+    <button class="btn-reset" onclick="resetPage('cruise')">Reset</button>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="prog-cruise"></div></div>
+    <div class="progress-label" id="prog-label-cruise">0%</div>
+  </div>
+  <div class="completion-banner" id="done-cruise">✓ Cruise Checks Complete</div>
+  <div class="checklist-section">
+    <div class="section-label">Cruise</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Throttle</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Pump</span><span class="item-action">Off</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Mixture</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Aircraft Lights</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Selector</span><span class="item-action">Switch every 30 min</span></div></div>
+  </div>
+  <div class="checklist-section">
+    <div class="section-label">Descent</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Weather / Avionics</span><span class="item-action">Checked</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Approach Briefing</span><span class="item-action">Complete</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Descent Power</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Carburetor Heat</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Pump</span><span class="item-action">On</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Mixture</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Selector</span><span class="item-action">Fullest Tank</span></div></div>
+  </div>
+</div>
+
+<!-- LANDING -->
+<div class="page" id="page-landing">
+  <div class="checklist-header">
+    <div class="checklist-title">Landing</div>
+    <button class="btn-reset" onclick="resetPage('landing')">Reset</button>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="prog-landing"></div></div>
+    <div class="progress-label" id="prog-label-landing">0%</div>
+  </div>
+  <div class="completion-banner" id="done-landing">✓ Landing Checks Complete</div>
+  <div class="checklist-section">
+    <div class="section-label">Before Landing (GUMPS)</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Pump</span><span class="item-action">On</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Mixture</span><span class="item-action">Rich</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Throttle</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Aircraft Lights</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Flaps</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Approach Airspeed</span><span class="item-action">66 KIAS</span></div></div>
+  </div>
+  <div class="checklist-section">
+    <div class="section-label">After Landing</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Flaps</span><span class="item-action">Up</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Trim</span><span class="item-action">Set Takeoff</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Carburetor Heat</span><span class="item-action">Off</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Aircraft Lights</span><span class="item-action">Set</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Pitot Heat</span><span class="item-action">Off</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Fuel Pump</span><span class="item-action">Off</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Mixture</span><span class="item-action">Lean</span></div></div>
+  </div>
+</div>
+
+<!-- SHUTDOWN -->
+<div class="page" id="page-shutdown">
+  <div class="checklist-header">
+    <div class="checklist-title">Shutdown</div>
+    <button class="btn-reset" onclick="resetPage('shutdown')">Reset</button>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="prog-shutdown"></div></div>
+    <div class="progress-label" id="prog-label-shutdown">0%</div>
+  </div>
+  <div class="completion-banner" id="done-shutdown">✓ Aircraft Secured</div>
+  <div class="checklist-section">
+    <div class="section-label">Shutdown</div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Avionics Master</span><span class="item-action">Off</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Throttle</span><span class="item-action">Idle</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Magneto</span><span class="item-action">Check</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Mixture</span><span class="item-action">Idle Cut-Off</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Magnetos</span><span class="item-action">Off</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">All Switches</span><span class="item-action">Off</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Aircraft Lights</span><span class="item-action">Off</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Nav Lights</span><span class="item-action">On</span></div></div>
+    <div class="check-item" onclick="toggle(this)"><div class="check-box"></div><div class="item-text"><span class="item-label">Brakes</span><span class="item-action">Released</span></div></div>
+  </div>
+</div>
+
+<!-- SPEEDS -->
+<div class="page" id="page-speeds">
+  <div class="checklist-header">
+    <div class="checklist-title">Important Speeds</div>
+  </div>
+  <div class="checklist-section">
+    <div class="section-label">Speeds (KIAS)</div>
+    <div class="speeds-grid">
+      <div class="speed-card"><span class="speed-name">VS0 — Stall, full flaps</span><span><span class="speed-val">49</span> <span class="speed-unit">kts</span></span></div>
+      <div class="speed-card"><span class="speed-name">VS1 — Stall, clean</span><span><span class="speed-val">55</span> <span class="speed-unit">kts</span></span></div>
+      <div class="speed-card"><span class="speed-name">VR — Rotate</span><span><span class="speed-val">48–53</span> <span class="speed-unit">kts</span></span></div>
+      <div class="speed-card"><span class="speed-name">VX — Best angle</span><span><span class="speed-val">64</span> <span class="speed-unit">kts</span></span></div>
+      <div class="speed-card"><span class="speed-name">VY — Best rate</span><span><span class="speed-val">76</span> <span class="speed-unit">kts</span></span></div>
+      <div class="speed-card"><span class="speed-name">VFE — Max flap extend</span><span><span class="speed-val">102</span> <span class="speed-unit">kts</span></span></div>
+      <div class="speed-card"><span class="speed-name">VA — Maneuvering (2550 lb)</span><span><span class="speed-val">113</span> <span class="speed-unit">kts</span></span></div>
+      <div class="speed-card"><span class="speed-name">VNO — Max structural cruise</span><span><span class="speed-val">125</span> <span class="speed-unit">kts</span></span></div>
+      <div class="speed-card"><span class="speed-name">VNE — Never exceed</span><span><span class="speed-val">154</span> <span class="speed-unit">kts</span></span></div>
+      <div class="speed-card"><span class="speed-name">Best Glide</span><span><span class="speed-val">76</span> <span class="speed-unit">kts</span></span></div>
+      <div class="speed-card"><span class="speed-name">Approach</span><span><span class="speed-val">66</span> <span class="speed-unit">kts</span></span></div>
+      <div class="speed-card"><span class="speed-name">Emergency Descent</span><span><span class="speed-val">125</span> <span class="speed-unit">kts</span></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- EMERGENCY -->
+<div class="page" id="page-emergency">
+  <div class="checklist-header">
+    <div class="checklist-title" style="color:var(--red)">⚠ Emergencies</div>
+  </div>
+  <div class="emergency-page-header">
+    <button class="btn-generate" onclick="generateEmergency()">🎲 Random Emergency</button>
+    <button class="btn-study-all" onclick="openStudy()">📚 Study All</button>
+  </div>
+
+  <!-- Active scenario card -->
+  <div class="scenario-card" id="scenario-card">
+    <div class="scenario-top">
+      <div>
+        <div class="scenario-type" id="sc-type">Engine Failure</div>
+        <div class="scenario-title" id="sc-title">Engine Failure in Flight</div>
+      </div>
+      <div style="text-align:right">
+        <div class="scenario-badge" id="sc-badge">Critical</div>
+        <div style="margin-top:8px">
+          <span style="font-family:var(--font-mono);font-size:11px;color:rgba(255,255,255,0.6)">Timer</span><br>
+          <span class="emergency-timer" id="sc-timer">0:00</span>
+        </div>
+      </div>
+    </div>
+    <div class="scenario-body">
+      <div class="scenario-desc" id="sc-desc"></div>
+      <ul class="emergency-steps" id="sc-steps"></ul>
+      <div class="scenario-progress">
+        <div class="progress-bar-track" style="flex:1"><div class="progress-bar-fill" id="sc-prog-fill" style="background:var(--red)"></div></div>
+        <div class="progress-label" id="sc-prog-label" style="color:var(--red)">0%</div>
+      </div>
+      <div class="completion-banner" id="sc-done" style="border-color:var(--accent);color:var(--accent)">✓ Checklist Complete — Good job!</div>
+    </div>
+  </div>
+
+  <!-- Library -->
+  <div class="emerg-library">
+    <div class="emerg-lib-title">— Emergency Procedures Library —</div>
+    <div class="emerg-grid" id="emerg-grid"></div>
+  </div>
+</div>
+
+</main>
+
+<!-- Study overlay -->
+<div class="study-overlay" id="study-overlay">
+  <div class="study-card">
+    <button class="btn-study-close" onclick="closeStudy()">✕ Close</button>
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-bottom:4px" id="study-counter"></div>
+    <div class="study-card-q" id="study-q"></div>
+    <div class="study-card-scenario" id="study-scenario-desc"></div>
+    <ul class="study-card-steps" id="study-steps"></ul>
+    <div class="study-nav">
+      <button class="btn-study-nav" onclick="studyNav(-1)">← Prev</button>
+      <button class="btn-study-nav" onclick="studyNav(1)">Next →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const EMERGENCIES = [
+  {
+    id: 'engine-fire-start',
+    name: 'Engine Fire — During Start',
+    type: 'Engine Fire',
+    cat: 'fire',
+    badge: 'Critical',
+    desc: 'Fire observed during engine start. Continue cranking to pull the fire through the engine intake.',
+    steps: [
+      { label: 'Starter', action: 'Continue Cranking' },
+      { label: 'Mixture', action: 'Idle Cut-Off' },
+      { label: 'Throttle', action: 'Open' },
+      { label: 'Fuel Pump', action: 'Off' },
+      { label: 'Fuel Selector', action: 'Off' },
+    ]
+  },
+  {
+    id: 'engine-fail-takeoff',
+    name: 'Engine Failure — Takeoff',
+    type: 'Engine Failure',
+    cat: 'engine',
+    badge: 'Critical',
+    desc: 'Engine failure during or immediately after takeoff. Land straight ahead — do NOT attempt to return to the runway at low altitude.',
+    steps: [
+      { label: 'Airspeed', action: 'Maintain Safe Airspeed' },
+      { label: 'Land', action: 'Straight Ahead' },
+      { note: 'If sufficient altitude — attempt restart:' },
+      { label: 'Fuel Selector', action: 'Switch Tanks' },
+      { label: 'Electric Fuel Pump', action: 'On' },
+      { label: 'Mixture', action: 'Rich' },
+      { label: 'Carburetor Heat', action: 'On' },
+      { note: 'If power not restored → Power Off Landing' },
+    ]
+  },
+  {
+    id: 'engine-fail-flight',
+    name: 'Engine Failure — In Flight',
+    type: 'Engine Failure',
+    cat: 'engine',
+    badge: 'Critical',
+    desc: 'Complete or partial engine failure in flight. Establish best glide immediately and locate a suitable landing area.',
+    steps: [
+      { label: 'Airspeed', action: '76 KIAS (Best Glide)' },
+      { label: 'Best Landing Site', action: 'Locate' },
+      { label: 'Fuel Pump', action: 'On' },
+      { label: 'Fuel Selector', action: 'Switch Tanks' },
+      { label: 'Mixture', action: 'Rich' },
+      { label: 'Carburetor Heat', action: 'On' },
+      { label: 'Engine Gauges', action: 'Check' },
+      { label: 'Primer', action: 'Check Locked' },
+      { label: 'Ignition', action: 'Check Both' },
+      { note: 'If power NOT restored → Power Off Landing' },
+    ]
+  },
+  {
+    id: 'power-off-landing',
+    name: 'Power Off Landing',
+    type: 'Emergency Landing',
+    cat: 'engine',
+    badge: 'Critical',
+    desc: 'Forced landing with no engine power. Squawk 7700, transmit on 121.5 MHz. Secure cabin before touchdown.',
+    steps: [
+      { label: 'Airspeed', action: '76 KIAS' },
+      { label: 'Best Landing Site', action: 'Locate' },
+      { label: 'Passengers', action: 'Prepare' },
+      { note: 'If time & altitude permit:' },
+      { label: 'Transponder', action: '7700' },
+      { label: 'Radios', action: 'Transmit 121.5' },
+      { label: 'ELT', action: 'On' },
+      { note: 'When committed to landing:' },
+      { label: 'Throttle', action: 'Idle' },
+      { label: 'Mixture', action: 'Idle Cut-Off' },
+      { label: 'Fuel Selector', action: 'Off' },
+      { label: 'Magnetos', action: 'Off' },
+      { label: 'Master Switch', action: 'Off' },
+      { label: 'Belts / Shoulder Harness', action: 'Secure' },
+      { label: 'Door', action: 'Open' },
+      { label: 'Approach Speed', action: '66–70 KIAS' },
+      { label: 'Flaps', action: 'Extend (if time/alt permits)' },
+    ]
+  },
+  {
+    id: 'engine-fire-flight',
+    name: 'Engine Fire — In Flight',
+    type: 'Engine Fire',
+    cat: 'fire',
+    badge: 'Critical',
+    desc: 'Fire in the engine compartment in flight. Shut off all fuel immediately. If fire does not extinguish, proceed to Emergency Descent.',
+    steps: [
+      { label: 'Fuel Selector', action: 'Off' },
+      { label: 'Mixture', action: 'Idle Cut-Off' },
+      { label: 'Throttle', action: 'Idle' },
+      { label: 'Fuel Pump', action: 'Off' },
+      { label: 'Fresh Air Vents / Windows', action: 'Open' },
+      { label: 'Panel Cabin Air / Heat / Defrost', action: 'Closed' },
+      { label: 'Magneto Switch', action: 'Off' },
+      { label: 'Master Switch', action: 'Off' },
+      { note: 'If fire extinguishes → Power Off Landing' },
+      { note: 'If fire continues → Emergency Descent' },
+    ]
+  },
+  {
+    id: 'electrical-fire',
+    name: 'Electrical Fire',
+    type: 'Electrical',
+    cat: 'electrical',
+    badge: 'Urgent',
+    desc: 'Smoke or fire from electrical system. Isolate all electrical immediately. Land as soon as practical.',
+    steps: [
+      { label: 'Batt / Alt Master Switch', action: 'Off' },
+      { label: 'Radio Master & All Electrical', action: 'Off' },
+      { label: 'Fresh Air Vents / Windows', action: 'Open' },
+      { label: 'Panel Cabin Air / Heat / Defrost', action: 'Closed' },
+      { note: 'If fire out and power needed:' },
+      { label: 'Batt / Alt Master Switch', action: 'On' },
+      { label: 'Circuit Breakers', action: 'DO NOT RESET' },
+      { label: 'Electrical Equipment', action: 'On ONE at a time' },
+      { note: 'Land as soon as practical' },
+    ]
+  },
+  {
+    id: 'emergency-descent',
+    name: 'Emergency Descent',
+    type: 'System',
+    cat: 'system',
+    badge: 'Urgent',
+    desc: 'Rapid descent required (e.g. cabin fire, hypoxia, structural issue). Do not exceed VNO (125 KIAS).',
+    steps: [
+      { label: 'Throttle', action: 'Idle' },
+      { label: 'Mixture', action: 'Rich (unless fire)' },
+      { label: 'Bank', action: '30°– 45°' },
+      { label: 'Airspeed', action: '125 KIAS (VNO)' },
+    ]
+  },
+  {
+    id: 'alternator-failure',
+    name: 'Alternator Failure',
+    type: 'Electrical',
+    cat: 'electrical',
+    badge: 'Urgent',
+    desc: 'ALT light illuminates. Prepare for possible electrical fire. Shed non-essential electrical load immediately.',
+    steps: [
+      { label: 'Prepare for', action: 'ELECTRICAL FIRE' },
+      { label: 'All Non-Required Equipment', action: 'Off' },
+      { label: '12V Charging Socket', action: 'Unplug' },
+      { label: 'Circuit Breakers', action: 'Check' },
+      { note: 'If no CB popped:' },
+      { label: 'Alternator Master Switch', action: 'Cycle Off / On' },
+      { note: 'If CB popped — reset ONLY if critical for safety' },
+      { note: 'If not restored — land as soon as practical' },
+    ]
+  },
+  {
+    id: 'engine-roughness',
+    name: 'Engine Roughness',
+    type: 'Engine',
+    cat: 'engine',
+    badge: 'Abnormal',
+    desc: 'Engine running rough. Could be carburetor ice, magneto issue, or fuel contamination. Investigate systematically.',
+    steps: [
+      { label: 'Throttle', action: '2500 RPM' },
+      { label: 'Carburetor Heat', action: 'On' },
+      { label: 'Fuel Pump', action: 'On' },
+      { note: 'If roughness continues after 30 sec:' },
+      { label: 'Fuel Selector', action: 'Switch Tanks (30 sec each)' },
+      { label: 'Mixture', action: 'Full Rich' },
+      { label: 'Engine Gauges', action: 'Check' },
+      { label: 'Magneto Switch', action: 'Check Individually' },
+      { note: 'If OK on one magneto — continue at reduced power, Full Rich' },
+      { note: 'Land as soon as practical' },
+    ]
+  },
+  {
+    id: 'oil-pressure-loss',
+    name: 'Loss of Oil Pressure',
+    type: 'Engine',
+    cat: 'engine',
+    badge: 'Critical',
+    desc: 'OIL light on or oil pressure gauge drops. Engine seizure is imminent. Prepare for forced landing immediately.',
+    steps: [
+      { note: 'Land as soon as practical' },
+      { label: 'Prepare for', action: 'POWER OFF LANDING' },
+    ]
+  },
+  {
+    id: 'fuel-pressure-loss',
+    name: 'Loss of Fuel Pressure',
+    type: 'Engine',
+    cat: 'engine',
+    badge: 'Urgent',
+    desc: 'Fuel pressure drops. Could indicate fuel pump failure or fuel exhaustion.',
+    steps: [
+      { label: 'Fuel Pump', action: 'On' },
+      { label: 'Fuel Selector', action: 'Fullest Tank' },
+    ]
+  },
+  {
+    id: 'high-oil-temp',
+    name: 'High Oil Temperature',
+    type: 'Engine',
+    cat: 'engine',
+    badge: 'Urgent',
+    desc: 'Oil temperature rising above normal range. Reduce power and level off to improve cooling.',
+    steps: [
+      { label: 'Altitude', action: 'Level (stop climb)' },
+      { label: 'Throttle', action: '2200 RPM' },
+      { note: 'If temp does not decrease — land as soon as practical' },
+      { label: 'Prepare for', action: 'POWER OFF LANDING' },
+    ]
+  },
+  {
+    id: 'vacuum-failure',
+    name: 'Loss of Vacuum Pressure',
+    type: 'System',
+    cat: 'system',
+    badge: 'Urgent',
+    desc: 'VAC light on. Attitude indicator and heading indicator are unreliable. Use backup instruments and exit IMC if applicable.',
+    steps: [
+      { label: 'Standby Vacuum Pump', action: 'On' },
+      { note: 'If pressure returns — continue normal operation' },
+      { note: 'If not restored — exit IMC, do not rely on vacuum instruments' },
+    ]
+  },
+  {
+    id: 'open-door',
+    name: 'Open Door in Flight',
+    type: 'Airframe',
+    cat: 'airframe',
+    badge: 'Abnormal',
+    desc: 'Door opens in flight. The aircraft remains controllable. Slow down and secure the door — do not panic.',
+    steps: [
+      { label: 'Airspeed', action: 'Slow to 87 KIAS' },
+      { label: 'Cabin Vents', action: 'Close' },
+      { label: 'Storm Window', action: 'Open' },
+      { label: 'Door', action: 'Secure Top Latch' },
+    ]
+  },
+  {
+    id: 'spin-recovery',
+    name: 'Spin Recovery',
+    type: 'Airframe',
+    cat: 'airframe',
+    badge: 'Critical',
+    desc: 'Aircraft has entered a spin. Apply PARE — Power, Ailerons, Rudder, Elevator. Do not pull out above VNE (154 KIAS).',
+    steps: [
+      { label: 'Throttle', action: 'Idle' },
+      { label: 'Ailerons', action: 'Neutral' },
+      { label: 'Rudder', action: 'Full Opposite (to rotation)' },
+      { label: 'Yoke', action: 'Full Forward' },
+      { label: 'Rudder', action: 'Neutral (when rotation stops)' },
+      { label: 'Yoke', action: 'Recover from dive' },
+      { note: 'Do not exceed 154 KIAS (VNE)' },
+    ]
+  },
+];
+
+// ===== Navigation =====
+let currentPage = 'preflight';
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    if (b.getAttribute('onclick') === `showPage('${id}')`) b.classList.add('active');
+  });
+  currentPage = id;
+}
+
+// ===== Checklist logic =====
+function toggle(el) {
+  el.classList.toggle('checked');
+  if (el.classList.contains('checked')) el.querySelector('.check-box').textContent = '✓';
+  else el.querySelector('.check-box').textContent = '';
+  updateProgress(currentPage);
+}
+
+function updateProgress(pageId) {
+  const page = document.getElementById('page-' + pageId);
+  if (!page) return;
+  const items = page.querySelectorAll('.check-item');
+  if (!items.length) return;
+  const done = page.querySelectorAll('.check-item.checked').length;
+  const pct = Math.round((done / items.length) * 100);
+  const fill = document.getElementById('prog-' + pageId);
+  const label = document.getElementById('prog-label-' + pageId);
+  const banner = document.getElementById('done-' + pageId);
+  if (fill) fill.style.width = pct + '%';
+  if (label) label.textContent = pct + '%';
+  if (banner) banner.classList.toggle('show', pct === 100);
+}
+
+function resetPage(pageId) {
+  const page = document.getElementById('page-' + pageId);
+  page.querySelectorAll('.check-item').forEach(el => {
+    el.classList.remove('checked');
+    el.querySelector('.check-box').textContent = '';
+  });
+  updateProgress(pageId);
+}
+
+// ===== Emergency Library =====
+function buildLibrary() {
+  const grid = document.getElementById('emerg-grid');
+  EMERGENCIES.forEach((e, i) => {
+    const card = document.createElement('div');
+    card.className = 'emerg-card';
+    card.innerHTML = `
+      <div class="emerg-card-name">${e.name}</div>
+      <div class="emerg-card-steps">${e.steps.filter(s=>s.label).length} steps</div>
+      <span class="emerg-card-cat cat-${e.cat}">${e.type}</span>
+    `;
+    card.onclick = () => loadScenario(i);
+    grid.appendChild(card);
+  });
+}
+
+// ===== Emergency Scenario =====
+let timerInterval = null;
+let timerSeconds = 0;
+let currentScenarioIndex = null;
+
+function loadScenario(idx) {
+  currentScenarioIndex = idx;
+  const e = EMERGENCIES[idx];
+  document.getElementById('sc-type').textContent = e.type;
+  document.getElementById('sc-title').textContent = e.name;
+  document.getElementById('sc-desc').textContent = e.desc;
+  document.getElementById('sc-badge').textContent = e.badge;
+  document.getElementById('sc-badge').style.background =
+    e.badge === 'Critical' ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.35)';
+  document.getElementById('sc-done').classList.remove('show');
+
+  const stepsEl = document.getElementById('sc-steps');
+  stepsEl.innerHTML = '';
+  let stepNum = 0;
+  e.steps.forEach((s, i) => {
+    if (s.note) {
+      const note = document.createElement('div');
+      note.className = 'estep-note';
+      note.textContent = s.note;
+      stepsEl.appendChild(note);
+    } else {
+      stepNum++;
+      const li = document.createElement('li');
+      li.className = 'emergency-step';
+      li.innerHTML = `
+        <div class="estep-check"></div>
+        <span class="step-num">${String(stepNum).padStart(2,'0')}</span>
+        <span class="estep-label">${s.label}</span>
+        <span class="estep-action">${s.action}</span>
+      `;
+      li.onclick = () => toggleStep(li);
+      stepsEl.appendChild(li);
+    }
+  });
+
+  document.getElementById('scenario-card').classList.add('active');
+  document.getElementById('scenario-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Timer
+  clearInterval(timerInterval);
+  timerSeconds = 0;
+  updateTimer();
+  timerInterval = setInterval(() => { timerSeconds++; updateTimer(); }, 1000);
+  updateScenarioProgress();
+}
+
+function updateTimer() {
+  const m = Math.floor(timerSeconds / 60);
+  const s = timerSeconds % 60;
+  document.getElementById('sc-timer').textContent = m + ':' + String(s).padStart(2,'0');
+}
+
+function toggleStep(el) {
+  el.classList.toggle('done');
+  el.querySelector('.estep-check').textContent = el.classList.contains('done') ? '✓' : '';
+  updateScenarioProgress();
+}
+
+function updateScenarioProgress() {
+  const steps = document.querySelectorAll('#sc-steps .emergency-step');
+  const done = document.querySelectorAll('#sc-steps .emergency-step.done').length;
+  const pct = steps.length ? Math.round((done / steps.length) * 100) : 0;
+  document.getElementById('sc-prog-fill').style.width = pct + '%';
+  document.getElementById('sc-prog-label').textContent = pct + '%';
+  if (pct === 100) {
+    clearInterval(timerInterval);
+    document.getElementById('sc-done').classList.add('show');
+  }
+}
+
+function generateEmergency() {
+  const idx = Math.floor(Math.random() * EMERGENCIES.length);
+  // Flash effect
+  const btn = document.querySelector('.btn-generate');
+  btn.textContent = '⚡ ' + EMERGENCIES[idx].name.toUpperCase();
+  setTimeout(() => { btn.textContent = '🎲 Random Emergency'; }, 2000);
+  loadScenario(idx);
+}
+
+// ===== Study Mode =====
+let studyIdx = 0;
+function openStudy() {
+  studyIdx = 0;
+  renderStudyCard();
+  document.getElementById('study-overlay').classList.add('active');
+}
+function closeStudy() {
+  document.getElementById('study-overlay').classList.remove('active');
+}
+function studyNav(dir) {
+  studyIdx = (studyIdx + dir + EMERGENCIES.length) % EMERGENCIES.length;
+  renderStudyCard();
+}
+function renderStudyCard() {
+  const e = EMERGENCIES[studyIdx];
+  document.getElementById('study-counter').textContent = `${studyIdx + 1} of ${EMERGENCIES.length} — ${e.badge}`;
+  document.getElementById('study-q').textContent = e.name;
+  document.getElementById('study-scenario-desc').textContent = e.desc;
+  const stepsEl = document.getElementById('study-steps');
+  stepsEl.innerHTML = '';
+  let n = 0;
+  e.steps.forEach(s => {
+    const li = document.createElement('li');
+    li.className = 'study-step';
+    if (s.note) {
+      li.innerHTML = `<span class="s-num">—</span><span class="s-lbl" style="color:var(--red);font-size:13px">${s.note}</span>`;
+    } else {
+      n++;
+      li.innerHTML = `<span class="s-num">${n}</span><span class="s-lbl">${s.label}</span><span class="s-act">${s.action}</span>`;
+    }
+    stepsEl.appendChild(li);
+  });
+}
+
+// Keyboard shortcut for study mode
+document.addEventListener('keydown', e => {
+  const overlay = document.getElementById('study-overlay');
+  if (overlay.classList.contains('active')) {
+    if (e.key === 'ArrowRight') studyNav(1);
+    if (e.key === 'ArrowLeft') studyNav(-1);
+    if (e.key === 'Escape') closeStudy();
+  }
+});
+
+buildLibrary();
+initCollapsibles();
+
+function initCollapsibles() {
+  document.querySelectorAll('.checklist-section').forEach(section => {
+    const label = section.querySelector('.section-label');
+    if (!label) return;
+
+    // Wrap label text in left span, add chevron + mini progress
+    const text = label.textContent.trim();
+    label.innerHTML = `
+      <span class="section-label-left">
+        <span class="section-chevron">▶</span>
+        ${text}
+      </span>
+      <span class="section-mini-prog"></span>
+    `;
+
+    // Wrap all siblings after label in a section-body div
+    const body = document.createElement('div');
+    body.className = 'section-body';
+    // Move all child nodes after the label into body
+    const children = Array.from(section.children);
+    children.forEach(child => {
+      if (child !== label) body.appendChild(child);
+    });
+    section.appendChild(body);
+
+    // Default: open
+    label.classList.add('open');
+    body.classList.add('open');
+
+    label.addEventListener('click', () => {
+      const isOpen = body.classList.contains('open');
+      body.classList.toggle('open', !isOpen);
+      label.classList.toggle('open', !isOpen);
+    });
+  });
+}
+
+// Override updateProgress to also update mini section progress
+const _origUpdateProgress = updateProgress;
+window.updateProgress = function(pageId) {
+  _origUpdateProgress(pageId);
+  // Update per-section mini progress
+  const page = document.getElementById('page-' + pageId);
+  if (!page) return;
+  page.querySelectorAll('.checklist-section').forEach(section => {
+    const items = section.querySelectorAll('.check-item');
+    if (!items.length) return;
+    const done = section.querySelectorAll('.check-item.checked').length;
+    const mini = section.querySelector('.section-mini-prog');
+    if (!mini) return;
+    if (done === 0) {
+      mini.textContent = '';
+      mini.classList.remove('visible');
+    } else if (done === items.length) {
+      mini.textContent = '✓ done';
+      mini.classList.add('visible');
+    } else {
+      mini.textContent = done + '/' + items.length;
+      mini.classList.add('visible');
+    }
+  });
+};
+</script>
+</body>
+</html>
